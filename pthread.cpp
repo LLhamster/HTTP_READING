@@ -311,7 +311,7 @@ static void handleMsg(int fd, std::string &msg){
     std::string path;
     if(path_tmp){
         path = *path_tmp;
-        path = "/" + path;
+        // path = "/" + path;
     }
     else{
         path = searchData_sql(decoMsg);
