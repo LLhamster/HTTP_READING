@@ -6,13 +6,13 @@
 
 #IncludeRegexTransform: 
 
-/home/hamster/coding/WebServer1/client_count.h
+/home/hamster/coding/http_reading/client_count.h
 pthread.h
 -
 
-/home/hamster/coding/WebServer1/pthread.cpp
+/home/hamster/coding/http_reading/pthread.cpp
 pthread.h
-/home/hamster/coding/WebServer1/pthread.h
+/home/hamster/coding/http_reading/pthread.h
 pthread.h
 -
 stdio.h
@@ -34,7 +34,7 @@ netinet/in.h
 arpa/inet.h
 -
 util.h
-/home/hamster/coding/WebServer1/util.h
+/home/hamster/coding/http_reading/util.h
 stdint.h
 -
 errno.h
@@ -44,7 +44,7 @@ signal.h
 string
 -
 client_count.h
-/home/hamster/coding/WebServer1/client_count.h
+/home/hamster/coding/http_reading/client_count.h
 unordered_set
 -
 vector
@@ -75,12 +75,14 @@ cppconn/prepared_statement.h
 -
 cppconn/resultset.h
 -
+sw/redis++/redis++.h
+-
 
-/home/hamster/coding/WebServer1/pthread.h
+/home/hamster/coding/http_reading/pthread.h
 pthread.h
 -
 stdio.h
 -
 
-/home/hamster/coding/WebServer1/util.h
+/home/hamster/coding/http_reading/util.h
 

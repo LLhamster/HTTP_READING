@@ -6,12 +6,15 @@ project(server)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+include_directories(/usr/include/hiredis /usr/local/include)
+link_directories(/usr/lib/x86_64-linux-gnu /usr/local/lib)
+
 # 添加可执行文件
 add_executable(server main.cpp util.cpp pthread.cpp epoll.cpp)
 
 # 添加 pthread 选项
 find_package(Threads REQUIRED)
-target_link_libraries(server PRIVATE Threads::Threads)
+target_link_libraries(server PRIVATE Threads::Threads redis++ hiredis pthread)
 
 
 # -----------------------------

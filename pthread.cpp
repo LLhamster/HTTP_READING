@@ -32,7 +32,7 @@
 #include <cppconn/exception.h>
 #include <cppconn/prepared_statement.h>
 #include <cppconn/resultset.h>
-
+#include <sw/redis++/redis++.h>
 
 
 pthread_mutex_t pthread::lock_ = PTHREAD_MUTEX_INITIALIZER;
@@ -228,7 +228,7 @@ static std::string decodeMsg(const std::string &msg){
     return tmp;
 }
 
-static std::string searchData(const std::string &title){
+static std::string searchData_sql(const std::string &title){
     // 请根据实际情况修改下面的连接信息
     const std::string dbUser = "root";
     const std::string dbPass = "123";
@@ -263,12 +263,28 @@ static std::string searchData(const std::string &title){
 
     if (rs->next()) {
         std::string url = rs->getString("url");
+        //写回Redis缓存
+        sw::redis::Redis redis("tcp://127.0.0.1:6379");
+        redis.set(title.c_str(), url.c_str(), std::chrono::seconds(3600));
         return url;
     } else {
         std::cout << "Not found: " << title << "\n";
         return "none";
     }
     
+}
+
+static auto search_redis(const std::string &title){
+    // 连接到 Redis
+    sw::redis::Redis redis("tcp://127.0.0.1:6379");
+
+    // // 设置书名与路径
+    // redis.hset("books", "三体", "books/2/main.pdf");
+    // redis.hset("books", "Harry Potter", "books/harry_potter.pdf");
+
+    // 获取路径
+    auto path = redis.get(title.c_str());
+    return path;
 }
 
 static void handleMsg(int fd, std::string &msg){
@@ -291,7 +307,15 @@ static void handleMsg(int fd, std::string &msg){
         msg = msg.substr(it+4);
     }
     std::string decoMsg = decodeMsg(msg);
-    std::string path = searchData(decoMsg);
+    auto path_tmp = search_redis(decoMsg);
+    std::string path;
+    if(path_tmp){
+        path = *path_tmp;
+        path = "/" + path;
+    }
+    else{
+        path = searchData_sql(decoMsg);
+    }
     if(path != "none"){
         std::string url = "http://127.0.0.1" + path;
         // std::cout << "Found: " << url << "\n";
