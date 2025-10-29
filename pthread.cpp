@@ -287,6 +287,7 @@ static auto search_redis(const std::string &title){
     return path;
 }
 
+
 static void handleMsg(int fd, std::string &msg){
     const char* header = 
         "HTTP/1.1 200 OK\r\n"
