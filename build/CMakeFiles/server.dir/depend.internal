@@ -7,9 +7,13 @@ CMakeFiles/server.dir/epoll.cpp.o
  /home/hamster/coding/http_reading/epoll.h
  /home/hamster/coding/http_reading/pthread.h
  /home/hamster/coding/http_reading/util.h
+CMakeFiles/server.dir/logger.cpp.o
+ /home/hamster/coding/http_reading/logger.cpp
+ /home/hamster/coding/http_reading/logger.h
 CMakeFiles/server.dir/main.cpp.o
  /home/hamster/coding/http_reading/client_count.h
  /home/hamster/coding/http_reading/epoll.h
+ /home/hamster/coding/http_reading/logger.h
  /home/hamster/coding/http_reading/main.cpp
  /home/hamster/coding/http_reading/util.h
 CMakeFiles/server.dir/pthread.cpp.o
@@ -17,6 +21,16 @@ CMakeFiles/server.dir/pthread.cpp.o
  /home/hamster/coding/http_reading/pthread.cpp
  /home/hamster/coding/http_reading/pthread.h
  /home/hamster/coding/http_reading/util.h
+ /usr/include/jsoncpp/json/allocator.h
+ /usr/include/jsoncpp/json/autolink.h
+ /usr/include/jsoncpp/json/config.h
+ /usr/include/jsoncpp/json/features.h
+ /usr/include/jsoncpp/json/forwards.h
+ /usr/include/jsoncpp/json/json.h
+ /usr/include/jsoncpp/json/reader.h
+ /usr/include/jsoncpp/json/value.h
+ /usr/include/jsoncpp/json/version.h
+ /usr/include/jsoncpp/json/writer.h
 CMakeFiles/server.dir/util.cpp.o
  /home/hamster/coding/http_reading/util.cpp
  /home/hamster/coding/http_reading/util.h

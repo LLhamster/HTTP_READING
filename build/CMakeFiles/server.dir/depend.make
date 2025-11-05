@@ -7,8 +7,12 @@ CMakeFiles/server.dir/epoll.cpp.o: ../epoll.h
 CMakeFiles/server.dir/epoll.cpp.o: ../pthread.h
 CMakeFiles/server.dir/epoll.cpp.o: ../util.h
 
+CMakeFiles/server.dir/logger.cpp.o: ../logger.cpp
+CMakeFiles/server.dir/logger.cpp.o: ../logger.h
+
 CMakeFiles/server.dir/main.cpp.o: ../client_count.h
 CMakeFiles/server.dir/main.cpp.o: ../epoll.h
+CMakeFiles/server.dir/main.cpp.o: ../logger.h
 CMakeFiles/server.dir/main.cpp.o: ../main.cpp
 CMakeFiles/server.dir/main.cpp.o: ../util.h
 
@@ -16,6 +20,16 @@ CMakeFiles/server.dir/pthread.cpp.o: ../client_count.h
 CMakeFiles/server.dir/pthread.cpp.o: ../pthread.cpp
 CMakeFiles/server.dir/pthread.cpp.o: ../pthread.h
 CMakeFiles/server.dir/pthread.cpp.o: ../util.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/allocator.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/autolink.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/config.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/features.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/forwards.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/json.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/reader.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/value.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/version.h
+CMakeFiles/server.dir/pthread.cpp.o: /usr/include/jsoncpp/json/writer.h
 
 CMakeFiles/server.dir/util.cpp.o: ../util.cpp
 CMakeFiles/server.dir/util.cpp.o: ../util.h

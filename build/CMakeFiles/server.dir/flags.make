@@ -6,5 +6,5 @@ CXX_FLAGS =   -std=gnu++17
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/usr/include/hiredis -I/usr/include/cppconn 
+CXX_INCLUDES = -I/usr/include/hiredis -I/usr/include/jsoncpp -I/usr/include/cppconn 
 

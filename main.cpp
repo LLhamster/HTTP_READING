@@ -14,6 +14,7 @@
 #include "pthread.h"
 #include <signal.h>
 #include "client_count.h"
+#include "logger.h"
 
 // 全局客户端计数及互斥锁
 typedef volatile int atomic_int;
@@ -52,6 +53,8 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    log_init("server.log");
+
     //判断命令行参数个数是否正确
     if(argc < 3) {
         printf("usage:%s ip_address port number\n",argv[0]);
@@ -66,10 +69,13 @@ int main(int argc,char *argv[]) {
     int sockfd = socket_bind_listen(port);
     assert(sockfd != -1);
     
+    log_info("server start on port %d", port);
+
     //创建epoll对象,并将监听套接字添加到epoll对象中
     int epollfd = epoll::epoll_init();
     if(epoll::epoll_add(sockfd)<0){
         perror("epoll_add error");
+        log_error("epoll_add error: %s", strerror(errno));
         return 1;
     }
     
@@ -83,13 +89,14 @@ int main(int argc,char *argv[]) {
         printf("当前客户端连接数: %d\n", client_count);
         pthread_mutex_unlock(&client_count_mutex);
         int result = epoll::epoll_wait_work(sockfd);
-        // 这里仅演示如何安全打印当前连接数，实际加减应在accept/close处
-        // printf("result=%d\n", result);
         if(result < 0){
             printf("epoll wait error\n");
+            log_error("epoll_wait error: %s", strerror(errno));
             break;      
         }
     }
     close(sockfd);
+    log_info("server stop");
+    log_shutdown();
     return 0;
 }

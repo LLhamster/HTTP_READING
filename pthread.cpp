@@ -34,6 +34,11 @@
 #include <cppconn/resultset.h>
 #include <sw/redis++/redis++.h>
 
+#include <curl/curl.h>
+#include <json/json.h>
+#include <fstream>
+
+
 
 pthread_mutex_t pthread::lock_ = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t pthread::cond_ = PTHREAD_COND_INITIALIZER;
@@ -287,6 +292,47 @@ static auto search_redis(const std::string &title){
     return path;
 }
 
+inline size_t onWriteData(void * buffer, size_t size, size_t nmemb, void * userp)
+{
+    std::string * str = dynamic_cast<std::string *>((std::string *)userp);
+    str->append((char *)buffer, size * nmemb);
+    return nmemb;
+}
+
+static std::string model_request(const std::string &question){
+    std::string result;
+    CURL *curl;
+    CURLcode res;
+    curl = curl_easy_init();
+    if(curl) {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_easy_setopt(curl, CURLOPT_URL, "https://qianfan.baidubce.com/v2/chat/completions");
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "undefined");
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, "appid: ");
+        headers = curl_slist_append(headers, "Authorization: Bearer bce-v3/ALTAK-QvmHMcoLhKuv5kll60Eog/e51dc6d44a75b7a3cf36907a0a2f130d92f549ba");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        std::string data = "{\"model\":\"deepseek-v3.1-250821\","
+                       "\"messages\":[{\"role\":\"user\",\"content\":\"" + question + "\"}],"
+                       "\"stream\":false,\"enable_thinking\":false}";
+
+        // const char *data = "{\"model\":\"deepseek-v3.1-250821\",\"messages\":[{\"role\":\"user\",\"content\":\"你好，你是谁？\"}],\"stream\":false,\"enable_thinking\":false}";
+
+
+        const char* post_data = data.c_str();  // 转为 const char* 传给 curl
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
+        // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, onWriteData);
+        res = curl_easy_perform(curl);
+        // std::cout<<result<< std::endl;
+    }
+    curl_easy_cleanup(curl);
+    return result;
+}
+
 
 static void handleMsg(int fd, std::string &msg){
     const char* header = 
@@ -322,6 +368,9 @@ static void handleMsg(int fd, std::string &msg){
         // std::cout << "Found: " << url << "\n";
         broadcast(fd, decoMsg.c_str(),url.c_str());
     }
+    std::string model_answer = model_request(decoMsg.c_str());
+    // std::cout<<model_answer<<std::endl;
+    broadcast(fd, model_answer.c_str());
     broadcast(fd, decoMsg.c_str());
     shutdown(fd, SHUT_WR);
     drain_read(fd);
