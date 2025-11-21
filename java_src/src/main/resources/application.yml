@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC
+    username: root
+    password: 123
+  redis:
+    host: 127.0.0.1
+    port: 6379
+
+logging:
+  file:
+    name: server.log
+  level:
+    root: INFO
+
+model:
+  apiUrl: https://qianfan.baidubce.com/v2/chat/completions
+  apiKey: "Bearer bce-v3/ALTAK-QvmHMcoLhKuv5kll60Eog/e51dc6d44a75b7a3cf36907a0a2f130d92f549ba"
