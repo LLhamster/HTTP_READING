@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>我的第一个网页</title>
+  <style>
+    /* CSS 样式：控制网页的外观 */
+    body {
+      font-family: sans-serif; /* 字体 */
+      margin: 20px; /* 页面边距 */
+      background-color: #dbdbdb; /* 背景颜色 */
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    #content {
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      max-width: 600px;
+      margin-top: 10px;
+    }
+    input[type=text]{padding:6px;}
+    form{display:flex;gap:8px;margin-top:8px;}
+
+    button {
+      padding: 12px 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI+图书搜索</h1>
+  <div id="chat-box" style="border:1px solid #ffffff; padding:10px;
+  position:absolute; top:50px; left:300px; width:1200px;">
+    <div id="messages" style="height:600px; overflow:auto; border:1px solid #ffffff; margin-bottom:10px;background-color:#ffffff"></div>
+    <input id="model_msg" placeholder="询问AI问题..." style="width:1000px;">
+    <button id="send">发送</button>
+  </div>
+
+  <form id="f">
+    <input id="book_msg" type="text" placeholder="搜索书籍">
+    <button id="btn">发送</button>
+  </form>
+
+  <script>
+    // JavaScript：控制网页的行为
+    const f = document.getElementById('f'); // 获取按钮元素
+    const book_msg = document.getElementById('book_msg'); // 获取内容区域
+    const messages = document.getElementById("messages");
+    const input = document.getElementById("model_msg");
+    const sendBtn = document.getElementById("send");
+
+    // 发送消息（假设后端是 /chat 接口）
+    sendBtn.onclick = async () => {
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      // 显示自己发送的消息
+      messages.innerHTML += `<div style="color: red">${msg}</div>`;
+
+      // 异步发送给后端
+      fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "msg=" + encodeURIComponent(msg)
+      })
+      .then(res => res.text())
+      .then(reply => {
+        const formatted = reply.replace(/\n/g, "<br>");
+        messages.innerHTML += `<div>${formatted}</div>`;
+      })
+      .catch(err => console.error(err));
+
+      input.value = "";
+    };
+
+    f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const t = book_msg.value.trim();
+      if (!t) return;
+      window.location.href = '/cover?msg=' + encodeURIComponent(t);
+    });
+
+  </script>
+</body>
+</html>
