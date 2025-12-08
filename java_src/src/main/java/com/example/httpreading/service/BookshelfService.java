@@ -5,6 +5,7 @@ import com.example.httpreading.domain.user.Bookshelf;
 import com.example.httpreading.repository.BookRepository;
 import com.example.httpreading.repository.BookshelfRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,6 +56,7 @@ public class BookshelfService {
     /**
      * 从用户书架移除图书（不存在时忽略）。
      */
+    @Transactional
     public void removeFromBookshelf(Long userId, Long bookId) {
         bookshelfRepository.deleteByUserIdAndBookId(userId, bookId);
     }

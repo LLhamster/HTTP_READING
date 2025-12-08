@@ -2,9 +2,11 @@
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/AppConfig.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/LoginInterceptor.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/WebMvcConfig.java
+/home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/AiReadingController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/AuthController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/BookController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/HttpController.java
+/home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/ReadingController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/SseController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/controller/UserBookshelfController.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/domain/entity/Book.java
@@ -17,6 +19,7 @@
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/repository/ChapterRepository.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/repository/ReadingProgressRepository.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/repository/UserRepository.java
+/home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/service/AiReadingService.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/service/BookQueryService.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/service/BookService.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/service/BookshelfService.java

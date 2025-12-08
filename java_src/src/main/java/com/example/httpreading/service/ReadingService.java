@@ -1,18 +1,24 @@
 package com.example.httpreading.service;
 
 import com.example.httpreading.domain.entity.Chapter;
+import com.example.httpreading.domain.user.ReadingProgress;
 import com.example.httpreading.repository.ChapterRepository;
+import com.example.httpreading.repository.ReadingProgressRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class ReadingService {
 
     private final ChapterRepository chapterRepository;
+    private final ReadingProgressRepository readingProgressRepository;
 
-    public ReadingService(ChapterRepository chapterRepository) {
+    public ReadingService(ChapterRepository chapterRepository,
+                          ReadingProgressRepository readingProgressRepository) {
         this.chapterRepository = chapterRepository;
+        this.readingProgressRepository = readingProgressRepository;
     }
 
     /**
@@ -30,5 +36,23 @@ public class ReadingService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Chapter not found, bookId=" + bookId + ", index=" + chapterIndex
                 ));
+    }
+
+    // 阅读进度相关方法
+    public ReadingProgress getProgress(Long userId, Long bookId) {
+        return readingProgressRepository.findByUserIdAndBookId(userId, bookId)
+                .orElse(null);
+    }
+
+    public ReadingProgress updateProgress(Long userId, Long bookId, int chapterIndex, int offset) {
+        ReadingProgress progress = readingProgressRepository
+                .findByUserIdAndBookId(userId, bookId)
+                .orElseGet(ReadingProgress::new);
+        progress.setUserId(userId);
+        progress.setBookId(bookId);
+        progress.setChapterIndex(chapterIndex);
+        progress.setOffset(offset);
+        progress.setUpdatedAt(LocalDateTime.now());
+        return readingProgressRepository.save(progress);
     }
 }

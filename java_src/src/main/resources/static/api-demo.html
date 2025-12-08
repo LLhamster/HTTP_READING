@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>HTTP Reading API Demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; }
+    h2 { margin-top: 24px; }
+    label { display: block; margin: 4px 0; }
+    input[type="text"], input[type="password"] { width: 220px; padding: 4px; }
+    button { margin-top: 4px; padding: 4px 10px; }
+    .section { border: 1px solid #ddd; padding: 12px; margin-top: 12px; border-radius: 4px; }
+    #output { white-space: pre-wrap; background: #f7f7f7; padding: 10px; margin-top: 8px; border-radius: 4px; max-height: 320px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>HTTP Reading API Demo</h1>
+  <p>这个页面用于在浏览器中直接调试后端接口（使用 Session，需允许携带 Cookie）。</p>
+
+  <div class="section">
+    <h2>1. 注册 / 登录</h2>
+    <label>用户名：<input type="text" id="username" value="user1" /></label>
+    <label>密码：<input type="password" id="password" value="123456" /></label>
+    <button onclick="registerUser()">注册 /api/auth/register</button>
+    <button onclick="login()">登录 /api/auth/login</button>
+  </div>
+
+  <div class="section">
+    <h2>2. 书籍相关（游客可访问）</h2>
+    <label>Book ID：<input type="text" id="bookId" value="10" /></label>
+    <button onclick="getBookDetail()">GET /api/books/{bookId}</button>
+    <button onclick="getChapters()">GET /api/books/{bookId}/chapters</button>
+    <label>章节序号（chapterIndex）：<input type="text" id="chapterIndex" value="1" /></label>
+    <button onclick="getChapter()">GET /api/books/{bookId}/chapters/{index}</button>
+  </div>
+
+  <div class="section">
+    <h2>3. 书架（需要已登录）</h2>
+    <label>Book ID：<input type="text" id="shelfBookId" value="10" /></label>
+    <button onclick="getBookshelf()">GET /api/user/bookshelf</button>
+    <button onclick="addToBookshelf()">POST /api/user/bookshelf/{bookId}</button>
+    <button onclick="removeFromBookshelf()">DELETE /api/user/bookshelf/{bookId}</button>
+  </div>
+
+  <div class="section">
+    <h2>4. 阅读进度（需要已登录）</h2>
+    <label>Book ID：<input type="text" id="progressBookId" value="10" /></label>
+    <label>章节序号（chapterIndex）：<input type="text" id="progressChapterIndex" value="2" /></label>
+    <label>Offset：<input type="text" id="progressOffset" value="0" /></label>
+    <button onclick="getProgress()">GET /api/user/books/{bookId}/progress</button>
+    <button onclick="updateProgress()">POST /api/user/books/{bookId}/progress</button>
+  </div>
+
+  <div class="section">
+    <h2>响应输出</h2>
+    <div id="output">等待操作...</div>
+  </div>
+
+  <script>
+    function log(title, data) {
+      const el = document.getElementById('output');
+      el.textContent = title + '\n' + JSON.stringify(data, null, 2);
+    }
+
+    async function request(method, url, body) {
+      const options = {
+        method,
+        headers: {},
+        credentials: 'include' // 关键：让浏览器携带/保存 Cookie（Session）
+      };
+      if (body != null) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+      }
+      try {
+        const res = await fetch(url, options);
+        let text = await res.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (e) {
+          data = text; // 不是 JSON 就原样展示
+        }
+        log(method + ' ' + url + ' [' + res.status + ']', data);
+      } catch (e) {
+        log('请求失败 ' + method + ' ' + url, { error: e.message });
+      }
+    }
+
+    // 1. 注册 / 登录
+    function registerUser() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      request('POST', '/api/auth/register', { username, password });
+    }
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      request('POST', '/api/auth/login', { username, password });
+    }
+
+    // 2. 书籍
+    function getBookDetail() {
+      const bookId = document.getElementById('bookId').value;
+      request('GET', '/api/books/' + encodeURIComponent(bookId));
+    }
+
+    function getChapters() {
+      const bookId = document.getElementById('bookId').value;
+      request('GET', '/api/books/' + encodeURIComponent(bookId) + '/chapters');
+    }
+
+    function getChapter() {
+      const bookId = document.getElementById('bookId').value;
+      const index = document.getElementById('chapterIndex').value;
+      request('GET', '/api/books/' + encodeURIComponent(bookId) + '/chapters/' + encodeURIComponent(index));
+    }
+
+    // 3. 书架
+    function getBookshelf() {
+      request('GET', '/api/user/bookshelf');
+    }
+
+    function addToBookshelf() {
+      const bookId = document.getElementById('shelfBookId').value;
+      request('POST', '/api/user/bookshelf/' + encodeURIComponent(bookId));
+    }
+
+    function removeFromBookshelf() {
+      const bookId = document.getElementById('shelfBookId').value;
+      request('DELETE', '/api/user/bookshelf/' + encodeURIComponent(bookId));
+    }
+
+    // 4. 阅读进度
+    function getProgress() {
+      const bookId = document.getElementById('progressBookId').value;
+      request('GET', '/api/user/books/' + encodeURIComponent(bookId) + '/progress');
+    }
+
+    function updateProgress() {
+      const bookId = document.getElementById('progressBookId').value;
+      const chapterIndex = parseInt(document.getElementById('progressChapterIndex').value, 10);
+      const offset = parseInt(document.getElementById('progressOffset').value, 10) || 0;
+      request('POST', '/api/user/books/' + encodeURIComponent(bookId) + '/progress', {
+        chapterIndex,
+        offset
+      });
+    }
+  </script>
+</body>
+</html>

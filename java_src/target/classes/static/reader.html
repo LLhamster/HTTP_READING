@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>在线阅读器 · HTTP Reading</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f7; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #1f2933; color: #fff; }
+    header h1 { font-size: 18px; margin: 0; }
+    header .right { display: flex; align-items: center; gap: 8px; }
+    header button { padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
+    header button.primary { background: #3b82f6; color: #fff; }
+    header button.secondary { background: #4b5563; color: #fff; }
+
+    main { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 48px); }
+
+    aside { border-right: 1px solid #e5e7eb; background: #ffffff; padding: 10px; overflow: auto; }
+    section { padding: 12px 16px; overflow: auto; }
+
+    h2 { margin: 8px 0; font-size: 16px; }
+    .search-box { display: flex; gap: 6px; margin-top: 4px; }
+    .search-box input { flex: 1; padding: 6px 8px; font-size: 14px; }
+    .search-box button { padding: 6px 10px; font-size: 14px; }
+
+    .list { margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+    .item { padding: 6px 4px; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+    .item:hover { background: #f3f4ff; }
+    .item-title { font-size: 14px; font-weight: 600; }
+    .item-meta { font-size: 12px; color: #6b7280; }
+
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 11px; background: #e5e7eb; margin-left: 4px; }
+
+    .reader-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .reader-title { font-size: 18px; font-weight: 600; }
+    .reader-sub { font-size: 13px; color: #6b7280; }
+
+    .chapter-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .chapter-nav select { padding: 4px 6px; }
+    .chapter-nav button { padding: 4px 10px; }
+
+    .chapter-content { background: #ffffff; border-radius: 4px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.1); height: calc(100% - 80px); overflow: auto; white-space: pre-wrap; line-height: 1.6; }
+
+    .login-panel { position: fixed; inset: 0; background: rgba(15,23,42,0.35); display: none; align-items: center; justify-content: center; }
+    .login-card { background: #ffffff; padding: 16px 18px; border-radius: 6px; width: 320px; box-shadow: 0 10px 25px rgba(15,23,42,0.45); }
+    .login-card h3 { margin: 0 0 8px; font-size: 16px; }
+    .login-card label { display: block; font-size: 13px; margin: 6px 0 2px; }
+    .login-card input { width: 100%; padding: 6px 8px; margin-bottom: 4px; }
+    .login-card button { margin-top: 6px; width: 100%; padding: 6px 10px; }
+    .login-card small { font-size: 12px; color: #6b7280; }
+
+    .status-bar { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>在线阅读器 · HTTP Reading</h1>
+  <div class="right">
+    <span id="userStatus">未登录</span>
+    <button class="secondary" onclick="openLogin()">登录 / 注册</button>
+    <button class="primary" onclick="loadBookshelf()">书架</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div>
+      <h2>搜索图书</h2>
+      <div class="search-box">
+        <input id="searchInput" type="text" placeholder="输入书名或作者" />
+        <button onclick="searchBooks()">搜索</button>
+      </div>
+      <div class="status-bar" id="searchStatus">输入关键字后点击搜索</div>
+      <div class="list" id="searchResults"></div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <h2>书架</h2>
+      <div class="status-bar" id="shelfStatus">登录后可查看书架</div>
+      <div class="list" id="shelfList"></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="reader-header">
+      <div>
+        <div class="reader-title" id="readerBookTitle">请选择一本书开始阅读</div>
+        <div class="reader-sub" id="readerBookSub"></div>
+      </div>
+      <div class="status-bar" id="progressInfo"></div>
+    </div>
+
+    <div class="chapter-nav">
+      <button onclick="prevChapter()">上一章</button>
+      <button onclick="nextChapter()">下一章</button>
+      <span>章节：</span>
+      <select id="chapterSelect" onchange="jumpChapter()"></select>
+      <button onclick="addCurrentBookToShelf()">加入书架</button>
+    </div>
+
+    <div class="chapter-content" id="chapterContent">
+      在左侧搜索图书并选择一本，或从书架中点选一本图书开始阅读。
+    </div>
+
+    <!-- AI 助手区域 -->
+    <div style="margin-top: 12px; background:#fff; border-radius:4px; padding:8px 10px; box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+      <div style="font-size:13px; font-weight:600; margin-bottom:4px;">AI 阅读助手</div>
+      <textarea id="aiQuestion" rows="3" style="width:100%; box-sizing:border-box; font-size:13px; padding:6px 8px; resize:vertical;" placeholder="针对当前章节提问，例如：请帮我总结这一节在讲什么？"></textarea>
+      <button style="margin-top:6px; padding:4px 10px; font-size:13px;" onclick="askAi()">询问 AI</button>
+      <div id="aiAnswer" style="margin-top:6px; font-size:13px; color:#111827; white-space:pre-wrap;"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 登录弹窗 -->
+<div class="login-panel" id="loginPanel">
+  <div class="login-card">
+    <h3>登录 / 注册</h3>
+    <label for="loginUsername">用户名</label>
+    <input id="loginUsername" type="text" value="user1" />
+    <label for="loginPassword">密码</label>
+    <input id="loginPassword" type="password" value="123456" />
+    <button onclick="doLogin()">登录</button>
+    <button onclick="doRegister()">注册</button>
+    <button onclick="closeLogin()">关闭</button>
+    <small id="loginMsg"></small>
+  </div>
+</div>
+
+<script>
+  let currentUser = null;      // {username: '...'} or null
+  let currentBookId = null;    // 当前阅读的书 id
+  let currentChapterIndex = 1; // 当前章节序号
+  let chaptersCache = [];      // 当前书的章节列表
+
+  function logError(msg) {
+    console.error(msg);
+  }
+
+  function updateUserStatus() {
+    const el = document.getElementById('userStatus');
+    if (currentUser) {
+      el.textContent = '已登录：' + currentUser.username;
+      document.getElementById('shelfStatus').textContent = '点击右上角“书架”加载';
+    } else {
+      el.textContent = '未登录';
+      document.getElementById('shelfStatus').textContent = '登录后可查看书架';
+      document.getElementById('shelfList').innerHTML = '';
+    }
+  }
+
+  async function api(method, url, body) {
+    const options = { method, headers: {}, credentials: 'include' };
+    if (body != null) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+    }
+    return data;
+  }
+
+  // 登录弹窗
+  function openLogin() {
+    document.getElementById('loginPanel').style.display = 'flex';
+    document.getElementById('loginMsg').textContent = '';
+  }
+  function closeLogin() {
+    document.getElementById('loginPanel').style.display = 'none';
+  }
+
+  async function doRegister() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    const msgEl = document.getElementById('loginMsg');
+    try {
+      await api('POST', '/api/auth/register', { username, password });
+      msgEl.textContent = '注册成功，可以点击登录';
+    } catch (e) {
+      msgEl.textContent = '注册失败：' + e.message;
+    }
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    const msgEl = document.getElementById('loginMsg');
+    try {
+      await api('POST', '/api/auth/login', { username, password });
+      currentUser = { username };
+      updateUserStatus();
+      msgEl.textContent = '登录成功';
+      setTimeout(closeLogin, 500);
+    } catch (e) {
+      msgEl.textContent = '登录失败：' + e.message;
+    }
+  }
+
+  // 搜索图书
+  async function searchBooks() {
+    const keyword = document.getElementById('searchInput').value.trim();
+    const statusEl = document.getElementById('searchStatus');
+    if (!keyword) {
+      statusEl.textContent = '请输入关键字';
+      return;
+    }
+    statusEl.textContent = '搜索中...';
+    try {
+      const page = await api('GET', '/api/books?keyword=' + encodeURIComponent(keyword));
+      const listEl = document.getElementById('searchResults');
+      listEl.innerHTML = '';
+      if (!page.content || page.content.length === 0) {
+        statusEl.textContent = '未找到相关图书';
+        return;
+      }
+      statusEl.textContent = '共 ' + page.totalElements + ' 本，当前展示 ' + page.content.length + ' 本';
+      page.content.forEach(book => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.onclick = () => openBook(book.id);
+        div.innerHTML = '<div class="item-title">' + book.title + '</div>' +
+          '<div class="item-meta">' + (book.author || '未知作者') + '</div>';
+        listEl.appendChild(div);
+      });
+    } catch (e) {
+      statusEl.textContent = '搜索失败：' + e.message;
+      logError(e);
+    }
+  }
+
+  // 打开一本书进行阅读
+  async function openBook(bookId) {
+    currentBookId = bookId;
+    currentChapterIndex = 1;
+    document.getElementById('progressInfo').textContent = '';
+
+    try {
+      const book = await api('GET', '/api/books/' + encodeURIComponent(bookId));
+      document.getElementById('readerBookTitle').textContent = book.title;
+      document.getElementById('readerBookSub').textContent = (book.author || '') + ' · ' + (book.status || '');
+
+      // 加载章节列表
+      chaptersCache = await api('GET', '/api/books/' + encodeURIComponent(bookId) + '/chapters');
+      const select = document.getElementById('chapterSelect');
+      select.innerHTML = '';
+      chaptersCache.forEach(ch => {
+        const opt = document.createElement('option');
+        opt.value = ch.chapterIndex;
+        opt.textContent = ch.chapterIndex + '. ' + ch.title;
+        select.appendChild(opt);
+      });
+
+      // 如果已登录，尝试读取阅读进度
+      if (currentUser) {
+        try {
+          const progress = await api('GET', '/api/user/books/' + encodeURIComponent(bookId) + '/progress');
+          if (progress && progress.chapterIndex) {
+            currentChapterIndex = progress.chapterIndex;
+            document.getElementById('progressInfo').textContent = '上次阅读到第 ' + currentChapterIndex + ' 章';
+          }
+        } catch (e) {
+          // 未读过该书或 404，可忽略
+        }
+      }
+
+      // 设置下拉选中项
+      const idx = chaptersCache.findIndex(ch => ch.chapterIndex === currentChapterIndex);
+      if (idx >= 0) {
+        select.value = currentChapterIndex;
+      }
+
+      await loadCurrentChapter();
+    } catch (e) {
+      document.getElementById('chapterContent').textContent = '加载图书失败：' + e.message;
+      logError(e);
+    }
+  }
+
+  async function loadCurrentChapter() {
+    if (!currentBookId) return;
+    try {
+      const chapter = await api('GET', '/api/books/' + encodeURIComponent(currentBookId) + '/chapters/' + encodeURIComponent(currentChapterIndex));
+      document.getElementById('chapterContent').textContent = chapter.title + '\n\n' + chapter.content;
+      document.getElementById('chapterSelect').value = currentChapterIndex;
+
+      // 已登录则更新阅读进度
+      if (currentUser) {
+        try {
+          await api('POST', '/api/user/books/' + encodeURIComponent(currentBookId) + '/progress', {
+            chapterIndex: currentChapterIndex,
+            offset: 0
+          });
+          document.getElementById('progressInfo').textContent = '已记录阅读到第 ' + currentChapterIndex + ' 章';
+        } catch (e) {
+          // 更新失败可以静默
+          logError(e);
+        }
+      }
+    } catch (e) {
+      document.getElementById('chapterContent').textContent = '加载章节失败：' + e.message;
+      logError(e);
+    }
+  }
+
+  function prevChapter() {
+    if (!currentBookId || chaptersCache.length === 0) return;
+    if (currentChapterIndex <= 1) return;
+    currentChapterIndex--;
+    loadCurrentChapter();
+  }
+
+  function nextChapter() {
+    if (!currentBookId || chaptersCache.length === 0) return;
+    const maxIndex = Math.max(...chaptersCache.map(ch => ch.chapterIndex));
+    if (currentChapterIndex >= maxIndex) return;
+    currentChapterIndex++;
+    loadCurrentChapter();
+  }
+
+  function jumpChapter() {
+    const val = parseInt(document.getElementById('chapterSelect').value, 10);
+    if (!isNaN(val)) {
+      currentChapterIndex = val;
+      loadCurrentChapter();
+    }
+  }
+
+  async function addCurrentBookToShelf() {
+    if (!currentBookId) return;
+    if (!currentUser) {
+      openLogin();
+      return;
+    }
+    try {
+      await api('POST', '/api/user/bookshelf/' + encodeURIComponent(currentBookId));
+      document.getElementById('shelfStatus').textContent = '已加入书架';
+      await loadBookshelf();
+    } catch (e) {
+      document.getElementById('shelfStatus').textContent = '加入书架失败：' + e.message;
+    }
+  }
+
+  async function loadBookshelf() {
+    if (!currentUser) {
+      openLogin();
+      return;
+    }
+    try {
+      const books = await api('GET', '/api/user/bookshelf');
+      const listEl = document.getElementById('shelfList');
+      listEl.innerHTML = '';
+      if (!books || books.length === 0) {
+        document.getElementById('shelfStatus').textContent = '书架为空';
+        return;
+      }
+      document.getElementById('shelfStatus').textContent = '共 ' + books.length + ' 本';
+      books.forEach(book => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.onclick = () => openBook(book.id);
+        div.innerHTML = '<div class="item-title">' + book.title + '</div>' +
+          '<div class="item-meta">' + (book.author || '') + '</div>';
+        listEl.appendChild(div);
+      });
+    } catch (e) {
+      document.getElementById('shelfStatus').textContent = '加载书架失败：' + e.message;
+    }
+  }
+
+  async function askAi() {
+    if (!currentBookId) {
+      alert('请先打开一本书');
+      return;
+    }
+    const textarea = document.getElementById('aiQuestion');
+    const ansEl = document.getElementById('aiAnswer');
+    const q = textarea.value.trim();
+    if (!q) {
+      alert('请输入问题');
+      return;
+    }
+    ansEl.textContent = '思考中，请稍候...';
+    try {
+      const resp = await api('POST', '/api/ai/ask', {
+        bookId: currentBookId,
+        chapterIndex: currentChapterIndex,
+        question: q
+      });
+      if (resp && resp.answer) {
+        ansEl.textContent = resp.answer;
+      } else {
+        ansEl.textContent = 'AI 没有返回有效答案';
+      }
+    } catch (e) {
+      ansEl.textContent = '调用 AI 失败：' + e.message;
+    }
+  }
+
+  // 初始化
+  updateUserStatus();
+</script>
+</body>
+</html>
