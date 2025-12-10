@@ -255,10 +255,11 @@
         select.appendChild(opt);
       });
 
-      // 如果已登录，尝试读取阅读进度
+      // 如果已登录，尝试读取阅读进度（统一返回体）
       if (currentUser) {
         try {
-          const progress = await api('GET', '/api/user/books/' + encodeURIComponent(bookId) + '/progress');
+          const resp = await api('GET', '/api/user/books/' + encodeURIComponent(bookId) + '/progress');
+          const progress = resp && resp.data ? resp.data : null;
           if (progress && progress.chapterIndex) {
             currentChapterIndex = progress.chapterIndex;
             document.getElementById('progressInfo').textContent = '上次阅读到第 ' + currentChapterIndex + ' 章';
@@ -288,14 +289,17 @@
       document.getElementById('chapterContent').textContent = chapter.title + '\n\n' + chapter.content;
       document.getElementById('chapterSelect').value = currentChapterIndex;
 
-      // 已登录则更新阅读进度
+      // 已登录则更新阅读进度（统一返回体）
       if (currentUser) {
         try {
-          await api('POST', '/api/user/books/' + encodeURIComponent(currentBookId) + '/progress', {
+          const resp = await api('POST', '/api/user/books/' + encodeURIComponent(currentBookId) + '/progress', {
             chapterIndex: currentChapterIndex,
             offset: 0
           });
-          document.getElementById('progressInfo').textContent = '已记录阅读到第 ' + currentChapterIndex + ' 章';
+          const progress = resp && resp.data ? resp.data : null;
+          if (progress) {
+            document.getElementById('progressInfo').textContent = '已记录阅读到第 ' + progress.chapterIndex + ' 章';
+          }
         } catch (e) {
           // 更新失败可以静默
           logError(e);
@@ -337,8 +341,12 @@
       return;
     }
     try {
-      await api('POST', '/api/user/bookshelf/' + encodeURIComponent(currentBookId));
-      document.getElementById('shelfStatus').textContent = '已加入书架';
+      const resp = await api('POST', '/api/user/bookshelf/' + encodeURIComponent(currentBookId));
+      if (resp && resp.code === 0) {
+        document.getElementById('shelfStatus').textContent = '已加入书架';
+      } else {
+        document.getElementById('shelfStatus').textContent = '加入书架失败';
+      }
       await loadBookshelf();
     } catch (e) {
       document.getElementById('shelfStatus').textContent = '加入书架失败：' + e.message;
@@ -351,7 +359,8 @@
       return;
     }
     try {
-      const books = await api('GET', '/api/user/bookshelf');
+      const resp = await api('GET', '/api/user/bookshelf');
+      const books = resp && resp.data ? resp.data : [];
       const listEl = document.getElementById('shelfList');
       listEl.innerHTML = '';
       if (!books || books.length === 0) {
@@ -391,10 +400,10 @@
         chapterIndex: currentChapterIndex,
         question: q
       });
-      if (resp && resp.answer) {
-        ansEl.textContent = resp.answer;
+      if (resp && resp.code === 0 && resp.data) {
+        ansEl.textContent = resp.data;
       } else {
-        ansEl.textContent = 'AI 没有返回有效答案';
+        ansEl.textContent = (resp && resp.message) ? resp.message : 'AI 没有返回有效答案';
       }
     } catch (e) {
       ansEl.textContent = '调用 AI 失败：' + e.message;

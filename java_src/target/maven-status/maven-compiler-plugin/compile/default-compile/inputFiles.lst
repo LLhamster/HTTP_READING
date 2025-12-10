@@ -1,4 +1,6 @@
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/HttpReadingApplication.java
+/home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/api/CommonResponse.java
+/home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/api/GlobalExceptionHandler.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/AppConfig.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/LoginInterceptor.java
 /home/hamster/coding/http_reading/java_src/src/main/java/com/example/httpreading/config/WebMvcConfig.java

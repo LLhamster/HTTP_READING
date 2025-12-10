@@ -60,5 +60,6 @@
         "thread": "cpp",
         "mutex": "cpp",
         "variant": "cpp"
-    }
+    },
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

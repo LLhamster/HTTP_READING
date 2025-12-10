@@ -1,5 +1,6 @@
 package com.example.httpreading.controller;
 
+import com.example.httpreading.api.CommonResponse;
 import com.example.httpreading.domain.user.ReadingProgress;
 import com.example.httpreading.service.ReadingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,10 +32,11 @@ public class ReadingController {
      * 获取当前用户在某本书的阅读进度。
      */
     @GetMapping("/{bookId}/progress")
-    public ReadingProgress getProgress(@PathVariable Long bookId,
-                                       HttpServletRequest request) {
+    public CommonResponse<ReadingProgress> getProgress(@PathVariable Long bookId,
+                                                       HttpServletRequest request) {
         Long userId = currentUserId(request);
-        return readingService.getProgress(userId, bookId);
+        ReadingProgress progress = readingService.getProgress(userId, bookId);
+        return CommonResponse.success(progress);
     }
 
     /**
@@ -43,15 +45,16 @@ public class ReadingController {
      * 请求体示例：{"chapterIndex":1, "offset":0}
      */
     @PostMapping("/{bookId}/progress")
-    public ReadingProgress updateProgress(@PathVariable Long bookId,
-                                          @RequestBody Map<String, Integer> body,
-                                          HttpServletRequest request) {
+    public CommonResponse<ReadingProgress> updateProgress(@PathVariable Long bookId,
+                                                          @RequestBody Map<String, Integer> body,
+                                                          HttpServletRequest request) {
         Long userId = currentUserId(request);
         Integer chapterIndex = body.get("chapterIndex");
         Integer offset = body.getOrDefault("offset", 0);
         if (chapterIndex == null) {
-            throw new IllegalArgumentException("chapterIndex is required");
+            throw new IllegalArgumentException("chapterIndex 不能为空");
         }
-        return readingService.updateProgress(userId, bookId, chapterIndex, offset);
+        ReadingProgress progress = readingService.updateProgress(userId, bookId, chapterIndex, offset);
+        return CommonResponse.success(progress);
     }
 }

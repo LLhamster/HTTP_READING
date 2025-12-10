@@ -26,6 +26,7 @@ public class BookshelfService {
     /**
      * 获取用户书架上的图书列表。
      */
+    @Transactional(readOnly = true)
     public List<Book> listUserBookshelf(Long userId) {
         List<Bookshelf> records = bookshelfRepository.findByUserId(userId);
         List<Long> bookIds = records.stream()
@@ -38,14 +39,14 @@ public class BookshelfService {
     }
 
     /**
-     * 将图书加入用户书架（如果已存在则忽略）。
+     * 将图书加入用户书架（幂等：已存在就直接返回，不抛异常）。
      */
+    @Transactional
     public void addToBookshelf(Long userId, Long bookId) {
-        bookshelfRepository.findByUserIdAndBookId(userId, bookId)
-                .ifPresent(existing -> {
-                    // 已存在则直接返回
-                    throw new IllegalStateException("book already in bookshelf");
-                });
+        boolean exists = bookshelfRepository.findByUserIdAndBookId(userId, bookId).isPresent();
+        if (exists) {
+            return; // 已在书架中，直接返回
+        }
         Bookshelf bookshelf = new Bookshelf();
         bookshelf.setUserId(userId);
         bookshelf.setBookId(bookId);

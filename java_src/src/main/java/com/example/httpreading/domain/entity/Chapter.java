@@ -28,6 +28,18 @@ public class Chapter {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "content_file_path")
+    private String contentFilePath;
+
+    // getter / setter
+    public String getContentFilePath() {
+        return contentFilePath;
+    }
+
+    public void setContentFilePath(String contentFilePath) {
+        this.contentFilePath = contentFilePath;
+    }
+
     public Long getId() {
         return id;
     }

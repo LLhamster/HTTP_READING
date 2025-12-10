@@ -48,6 +48,19 @@ pthread_t pthread::workers_[WORKER_NUM];
 int pthread::queue_[1024];
 
 
+static std::string html; // 用 std::string 存储动态内容
+
+void load_html(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        html = "<h1>加载失败:无法打开HTML文件</h1>";
+        return;
+    }
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    html = ss.str();
+}
+
 static void drain_read(int fd) {
     char buf[4096];
     // //将设备数减去1
@@ -127,29 +140,18 @@ static void respond_404(int fd){
 }
 
 static void respond_html(int fd){
-    static const char* html =
-        "<!DOCTYPE html>\n"
-        "<html><head><meta charset=\"utf-8\"><title>聊天室</title>"
-        "<style>body{font-family:sans-serif;max-width:680px;margin:20px auto;}#log{border:1px solid #ccc;height:300px;overflow:auto;padding:8px;white-space:pre-wrap;}form{display:flex;gap:8px;margin-top:8px;}input[type=text]{flex:1;padding:6px;}button{padding:6px 12px;}</style>"
-        "</head><body><h2>聊天室</h2><div id=\"log\"></div>"
-        "<form id=\"f\"><input id=\"msg\" type=\"text\" placeholder=\"输入消息后回车或点发送\"><button>发送</button></form>"
-        "<script>const log=document.getElementById('log');function append(t){const b=log.scrollTop+log.clientHeight>=log.scrollHeight-5;if(t.startsWith('<button')){const div=document.createElement('div');div.innerHTML=t;log.appendChild(div);}else{const textNode=document.createTextNode(t+'\\n');log.appendChild(textNode);}if(b)log.scrollTop=log.scrollHeight;}const es=new EventSource('/events');es.onmessage=(e)=>append(e.data);es.onerror=()=>append('[系统] 连接断开，刷新页面重试');const f=document.getElementById('f');const m=document.getElementById('msg');f.addEventListener('submit',async(e)=>{e.preventDefault();const t=m.value.trim();if(!t)return;try{await fetch('/send',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'msg='+encodeURIComponent(t)});m.value='';}catch(err){append('[系统] 发送失败：'+err);}});</script>"
-        "</body></html>";
-    
-    char header[256];
-    int n = snprintf(header, sizeof(header),
-                 "HTTP/1.1 200 OK\r\n"
-                 "Content-Length: %zu\r\n"
-                 "Content-Type: text/html;charset=utf-8\r\n"
-                 "Connection: close\r\n"
-                 "\r\n",
-                 strlen(html));
-    if(n < 0){
-        perror("snprintf error");
-        respond_404(fd);
-        return;
-    }
-    if(write_all(fd, header, strlen(header)) < 0 || write_all(fd, html, strlen(html)) < 0){
+
+    load_html("/home/hamster/coding/http_reading/web/bookstore.html"); // html 是 std::string
+
+    // 拼接 HTTP header
+    std::string header = "HTTP/1.1 200 OK\r\n";
+    header += "Content-Length: " + std::to_string(html.size()) + "\r\n";
+    header += "Content-Type: text/html; charset=utf-8\r\n";
+    header += "Connection: close\r\n\r\n";
+
+    // 发送 header
+    if(write_all(fd, header.c_str(), header.size()) < 0 ||
+    write_all(fd, html.c_str(), html.size()) < 0){
         perror("write error");
         respond_404(fd);
         return;
@@ -299,6 +301,34 @@ inline size_t onWriteData(void * buffer, size_t size, size_t nmemb, void * userp
     return nmemb;
 }
 
+
+// 从 JSON 字符串中提取 content 字段内容（简单方法，不完全通用）
+std::string extractContent(const std::string& json_str) {
+    const std::string key = "\"content\":\"";
+    size_t start = json_str.find(key);
+    if (start == std::string::npos) return "未找到 content";
+    start += key.length();
+    size_t end = json_str.find("\"", start);
+    if (end == std::string::npos) return "content 截取失败";
+
+    std::string content = json_str.substr(start, end - start);
+
+    // 处理转义字符（例如 \n \")
+    std::string result;
+    for (size_t i = 0; i < content.size(); ++i) {
+        if (content[i] == '\\' && i + 1 < content.size()) {
+            char next = content[i + 1];
+            if (next == 'n') result += '\n';
+            else if (next == '\"') result += '\"';
+            else result += next;
+            ++i;
+        } else {
+            result += content[i];
+        }
+    }
+    return result;
+}
+
 static std::string model_request(const std::string &question){
     std::string result;
     CURL *curl;
@@ -330,30 +360,69 @@ static std::string model_request(const std::string &question){
         // std::cout<<result<< std::endl;
     }
     curl_easy_cleanup(curl);
-    return result;
+    // 提取 content
+    return extractContent(result);
 }
 
 
-static void handleMsg(int fd, std::string &msg){
-    const char* header = 
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Length: 0\r\n"
-        "Content-Type: text/html;charset=utf-8\r\n"
-        "Connection: close\r\n"
-        "\r\n";
-    
-    if(write_all(fd, header, strlen(header)) < 0){
-        perror("write error");
-        respond_404(fd);
-        return;
-    }
 
+static void handleMsg(int fd, std::string &msg){
     auto it = msg.find("msg=");
     if(it != std::string::npos){
         std::cout << "cut" << std::endl;
         msg = msg.substr(it+4);
     }
     std::string decoMsg = decodeMsg(msg);
+    // auto path_tmp = search_redis(decoMsg);
+    // std::string path;
+    // if(path_tmp){
+    //     path = *path_tmp;
+    //     // path = "/" + path;
+    // }
+    // else{
+    //     path = searchData_sql(decoMsg);
+    // }
+    // if(path != "none"){
+    //     std::string url = "http://127.0.0.1" + path;
+    //     // std::cout << "Found: " << url << "\n";
+    //     broadcast(fd, decoMsg.c_str(),url.c_str());
+    // }
+    std::string model_answer = model_request(decoMsg.c_str());
+    
+    const std::string header = 
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Length: " + std::to_string(model_answer.size()) + "\r\n"
+        "Content-Type: text/html;charset=utf-8\r\n"
+        "Connection: close\r\n\r\n";
+    
+    if(write_all(fd, header.c_str(), header.size()) < 0 ||
+        write_all(fd, model_answer.c_str(), model_answer.size()) < 0){
+        perror("write error");
+        respond_404(fd);
+        return;
+    }
+
+    shutdown(fd, SHUT_WR);
+    drain_read(fd);
+    close(fd);
+}
+
+static void ReturnCover(int fd, std::string& msg){
+    //url_pdf是图书的路径，url_jpg是图书封面的路径，
+    std::string url_jpg = "?msg=/coding/http_reading/sample.jpg";
+    std::string url_pdf = "https://www.baidu.com";
+    std::string title = "图书库中没有此内容";
+    //提取前端发过来的信息
+    auto it = msg.find("msg=");
+    if(it != std::string::npos){
+        msg = msg.substr(it+4);
+    }
+    auto pos = msg.find(' '); // 找到空格，表示 HTTP 协议开始
+    if (pos != std::string::npos) {
+        msg = msg.substr(0, pos);
+    }
+    std::string decoMsg = decodeMsg(msg);
+    //查找是否有前端发过来的图书名
     auto path_tmp = search_redis(decoMsg);
     std::string path;
     if(path_tmp){
@@ -364,14 +433,66 @@ static void handleMsg(int fd, std::string &msg){
         path = searchData_sql(decoMsg);
     }
     if(path != "none"){
-        std::string url = "http://127.0.0.1" + path;
-        // std::cout << "Found: " << url << "\n";
-        broadcast(fd, decoMsg.c_str(),url.c_str());
+        title = decoMsg;
+        url_pdf = "http://127.0.0.1" + path + "main.pdf";
+        url_jpg = "?msg=/file" + path + "main.jpg";
     }
-    std::string model_answer = model_request(decoMsg.c_str());
-    // std::cout<<model_answer<<std::endl;
-    broadcast(fd, model_answer.c_str());
-    broadcast(fd, decoMsg.c_str());
+
+    std::string html =
+                "<!DOCTYPE html><html><body>"
+                "<h2>" + title + "</h2>"
+                "<a href=\"" + url_pdf +"\">"
+                "<img src='/image"+ url_jpg +"' style='width:200px;border-radius:10px;'>"
+                "</a>"
+                "</body></html>";
+
+    std::string response =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Length: " + std::to_string(html.size()) + "\r\n"
+        "Connection: close\r\n\r\n" +
+        html;
+
+    if(write_all(fd, response.c_str(), response.size()) < 0 ){
+        perror("write error");
+        respond_404(fd);
+        return;
+    }
+    shutdown(fd, SHUT_WR);
+    drain_read(fd);
+    close(fd);
+}
+
+static void SendImage(int fd , std::string&msg){
+    auto it = msg.find("msg=");
+    if(it != std::string::npos){
+        msg = msg.substr(it+4);
+    }
+    auto pos = msg.find(' '); // 找到空格，表示 HTTP 协议开始
+    if (pos != std::string::npos) {
+        msg = msg.substr(0, pos);
+    }
+    std::string decoMsg = decodeMsg(msg);
+    std::string path = "/home/hamster";  // const char* 会隐式转 string
+    path += decoMsg;
+    // path += "main.jpg";
+    std::ifstream file(path, std::ios::binary);
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    std::string image_data = oss.str();
+
+    // 返回HTTP响应头 + 图片二进制数据
+    std::string response =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: image/jpeg\r\n"
+        "Content-Length: " + std::to_string(image_data.size()) + "\r\n"
+        "Connection: close\r\n\r\n";
+    if(write_all(fd, response.c_str(), response.size()) < 0 ||
+    write_all(fd, image_data.c_str(), image_data.size()) < 0){
+        perror("write error");
+        respond_404(fd);
+        return;
+    }
     shutdown(fd, SHUT_WR);
     drain_read(fd);
     close(fd);
@@ -387,19 +508,32 @@ void* pthread::worker_(void* arg){
                 close(work_fd);
                 continue;
             }
+
             //打印请求命令
+
             std::cout << buf << std::endl;
-            if(buf.find("/events") != std::string::npos){
+
+            if(buf.find("GET /cover") != std::string::npos){
+                ReturnCover(work_fd, buf);
+                continue;
+            }
+
+            else if(buf.find("GET /image") != std::string::npos){
+                SendImage(work_fd, buf);
+                continue;
+            }    
+            
+            else if(buf.find("/events") != std::string::npos){
                 keep_html(work_fd);
                 continue;
             }
 
-            if(buf.find("GET /") != std::string::npos){
+            else if(buf.find("GET /") != std::string::npos){
                 respond_html(work_fd);
                 continue;
             }
 
-            if(buf.find("POST /send") != std::string::npos){
+            else if(buf.find("POST /chat") != std::string::npos){
                 // std::cout<<"post"<<std::endl;
                 handleMsg(work_fd, buf);
                 continue;

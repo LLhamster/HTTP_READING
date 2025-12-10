@@ -1,5 +1,6 @@
 package com.example.httpreading.controller;
 
+import com.example.httpreading.api.CommonResponse;
 import com.example.httpreading.domain.entity.Book;
 import com.example.httpreading.service.BookshelfService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,30 +32,33 @@ public class UserBookshelfController {
      * 获取当前登录用户的书架列表。
      */
     @GetMapping
-    public List<Book> listUserBookshelf(HttpServletRequest request) {
+    public CommonResponse<List<Book>> listUserBookshelf(HttpServletRequest request) {
         Long userId = currentUserId(request);
-        return bookshelfService.listUserBookshelf(userId);
+        List<Book> books = bookshelfService.listUserBookshelf(userId);
+        return CommonResponse.success(books);
     }
 
     /**
      * POST /api/user/bookshelf/{bookId}
-     * 将某本书加入当前用户书架。
+     * 将某本书加入当前用户书架（幂等）。
      */
     @PostMapping("/{bookId}")
-    public void addToBookshelf(@PathVariable Long bookId,
-                               HttpServletRequest request) {
+    public CommonResponse<Void> addToBookshelf(@PathVariable Long bookId,
+                                               HttpServletRequest request) {
         Long userId = currentUserId(request);
         bookshelfService.addToBookshelf(userId, bookId);
+        return CommonResponse.success(null);
     }
 
     /**
      * DELETE /api/user/bookshelf/{bookId}
-     * 从当前用户书架移除某本书。
+     * 从当前用户书架移除某本书（幂等）。
      */
     @DeleteMapping("/{bookId}")
-    public void removeFromBookshelf(@PathVariable Long bookId,
-                                    HttpServletRequest request) {
+    public CommonResponse<Void> removeFromBookshelf(@PathVariable Long bookId,
+                                                    HttpServletRequest request) {
         Long userId = currentUserId(request);
         bookshelfService.removeFromBookshelf(userId, bookId);
+        return CommonResponse.success(null);
     }
 }

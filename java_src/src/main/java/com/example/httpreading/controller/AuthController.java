@@ -1,5 +1,6 @@
 package com.example.httpreading.controller;
 
+import com.example.httpreading.api.CommonResponse;
 import com.example.httpreading.domain.user.User;
 import com.example.httpreading.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,13 +24,20 @@ public class AuthController {
      * 简单接收 JSON：{"username":"xxx", "password":"yyy"}
      */
     @PostMapping("/register")
-    public User register(@RequestBody Map<String, String> body) {
+    public CommonResponse<Map<String, Object>> register(@RequestBody Map<String, String> body) {
         String username = body.get("username");
         String password = body.get("password");
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            throw new IllegalArgumentException("username and password must not be blank");
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("用户名不能为空");
         }
-        return userService.register(username, password);
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("密码不能为空");
+        }
+        User u = userService.register(username, password);
+        return CommonResponse.success(Map.of(
+                "id", u.getId(),
+                "username", u.getUsername()
+        ));
     }
 
     /**
@@ -37,33 +45,35 @@ public class AuthController {
      * 成功后在 Session 中保存 userId。
      */
     @PostMapping("/login")
-    public String login(@RequestBody Map<String, String> body,
-                        HttpServletRequest request) {
+    public CommonResponse<Map<String, Object>> login(@RequestBody Map<String, String> body,
+                                                     HttpServletRequest request) {
         String username = body.get("username");
         String password = body.get("password");
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            throw new IllegalArgumentException("username and password must not be blank");
+            throw new IllegalArgumentException("用户名或密码不能为空");
         }
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("user not found"));
-        if (!password.equals(user.getPasswordHash())) { // 简单对比，后续改为加密
-            throw new IllegalArgumentException("invalid password");
-        }
+        User u = userService.findByUsername(username)
+                .filter(user -> password.equals(user.getPasswordHash())) // 现阶段使用明文/简单比对
+                .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
         HttpSession session = request.getSession(true);
-        session.setAttribute("userId", user.getId());
-        return "ok";
+        session.setAttribute("userId", u.getId());
+        return CommonResponse.success(Map.of(
+                "id", u.getId(),
+                "username", u.getUsername()
+        ));
     }
 
     /**
      * 简单检查当前是否已登录。
      */
     @GetMapping("/me")
-    public User me(HttpServletRequest request) {
+    public CommonResponse<Map<String, Object>> me(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("userId") == null) {
-            return null;
+            throw new IllegalArgumentException("未登录");
         }
         Long userId = (Long) session.getAttribute("userId");
-        return userService.findByUsername("dummy").orElse(null); // TODO: 可改为按 id 查询
+        // 这里简单返回 userId，后续可按 id 查询完整用户
+        return CommonResponse.success(Map.of("id", userId));
     }
 }
