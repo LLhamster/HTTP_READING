@@ -70,26 +70,150 @@ def split_pdf_by_toc(pdf_path: Path):
     return result
 
 # --------- EPUB 提取 ---------
+# def extract_text_from_epub(path: Path) -> str:
+#     """
+#     使用 HTML 标签提取 EPUB 文本，每段落空一行
+#     """
+#     book = epub.read_epub(str(path))
+#     texts = []
+#     for item in book.get_items():
+#         if item.get_type() == epub.EpubHtml:
+#             html = item.get_body_content().decode("utf-8", errors="ignore")
+#             soup = BeautifulSoup(html, "html.parser")
+#             for tag in soup(["script", "style"]):
+#                 tag.decompose()
+#             paragraphs = []
+#             for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'li']):
+#                 text = p.get_text(strip=True)
+#                 if text:
+#                     paragraphs.append(text)
+#             txt = "\n\n".join(paragraphs)
+#             texts.append(txt)
+#     return "\n".join(texts)
+
+def split_epub_by_spine_and_toc(path: Path):
+    book = epub.read_epub(str(path))
+
+    # ===== 1. 读取 TOC（目录）=====
+    toc_links = []
+
+    def flatten(toc):
+        for item in toc:
+            if isinstance(item, epub.Link):
+                toc_links.append(item)
+            elif isinstance(item, (list, tuple)):
+                flatten(item)
+
+    flatten(book.toc)
+
+    # href -> 章节标题
+    toc_map = {}
+    for link in toc_links:
+        href = link.href.split("#")[0]
+        toc_map[href] = link.title.strip()
+
+    # ===== 2. 按 spine 顺序拿 HTML =====
+    spine_ids = [i[0] for i in book.spine if i[0] != "nav"]
+    spine_items = [book.get_item_with_id(sid) for sid in spine_ids]
+
+    # ===== 3. HTML → 纯文本 =====
+    def html_to_text(item):
+        soup = BeautifulSoup(
+            item.get_content().decode("utf-8", errors="ignore"),
+            "html.parser",
+        )
+        for tag in soup(["script", "style", "nav"]):
+            tag.decompose()
+
+        for br in soup.find_all("br"):
+            br.replace_with("\n")
+
+        body = soup.body
+        if not body:
+            return ""
+
+        lines = []
+        for line in body.get_text("\n", strip=True).splitlines():
+            line = re.sub(r"\s+", " ", line).strip()
+            if line:
+                lines.append("　　" + line)
+
+        return "\n\n".join(lines)
+
+    # ===== 4. 正式分章节 =====
+    chapters = []
+    current_title = "正文前内容"
+    current_buf = []
+    chapter_index = 1
+
+    for item in spine_items:
+        name = item.file_name
+        text = html_to_text(item)
+        if not text:
+            continue
+
+        # 如果这个 HTML 在 TOC 里 → 新章节开始
+        if name in toc_map:
+            if current_buf:
+                chapters.append(
+                    (chapter_index, current_title, "\n\n".join(current_buf))
+                )
+                chapter_index += 1
+                current_buf = []
+
+            current_title = toc_map[name]
+
+        current_buf.append(text)
+
+    # 收尾
+    if current_buf:
+        chapters.append(
+            (chapter_index, current_title, "\n\n".join(current_buf))
+        )
+
+    return chapters
+
+
 def extract_text_from_epub(path: Path) -> str:
     """
-    使用 HTML 标签提取 EPUB 文本，每段落空一行
+    EPUB → 小说友好 TXT
+    - 兼容 div / p / span / br
+    - 合并 EPUB 排版换行
+    - 段首两个全角空格
     """
     book = epub.read_epub(str(path))
     texts = []
+
     for item in book.get_items():
-        if item.get_type() == epub.EpubHtml:
-            html = item.get_body_content().decode("utf-8", errors="ignore")
-            soup = BeautifulSoup(html, "html.parser")
-            for tag in soup(["script", "style"]):
-                tag.decompose()
-            paragraphs = []
-            for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'li']):
-                text = p.get_text(strip=True)
-                if text:
-                    paragraphs.append(text)
-            txt = "\n\n".join(paragraphs)
-            texts.append(txt)
-    return "\n".join(texts)
+        # ⚠️ 不再只限制 EpubHtml
+        if item.media_type not in ("application/xhtml+xml", "text/html"):
+            continue
+
+        html = item.get_content().decode("utf-8", errors="ignore")
+        soup = BeautifulSoup(html, "html.parser")
+
+        for tag in soup(["script", "style", "nav"]):
+            tag.decompose()
+
+        body = soup.body
+        if not body:
+            continue
+
+        # 把 <br> 统一当作换行
+        for br in body.find_all("br"):
+            br.replace_with("\n")
+
+        # 拿 body 下的“所有可见文本”
+        raw_text = body.get_text("\n", strip=True)
+
+        for line in raw_text.splitlines():
+            line = re.sub(r"\s+", " ", line).strip()
+            if not line:
+                continue
+
+            texts.append("　　" + line)
+
+    return "\n\n".join(texts)
 
 def read_text_file(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
@@ -191,7 +315,8 @@ def process_one_book(book_id: int, file_path: Path):
             print("[WARN] PDF 无目录，回退到 pdfplumber 提取全文")
             raw_text = extract_text_with_pdfplumber(file_path)
     elif suffix == ".epub":
-        raw_text = extract_text_from_epub(file_path)
+        chapters = split_epub_by_spine_and_toc(file_path)
+        raw_text = None
     elif suffix in (".txt", ".md"):
         raw_text = read_text_file(file_path)
     else:

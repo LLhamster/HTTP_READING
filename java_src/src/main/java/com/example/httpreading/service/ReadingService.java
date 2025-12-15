@@ -55,14 +55,6 @@ public class ReadingService {
             }
         }
         return chapter;
-        // // 临时调试：只保留 id、title、chapterIndex、content，其余字段不暴露
-        // Chapter dto = new Chapter();
-        // dto.setId(chapter.getId());
-        // dto.setBookId(chapter.getBookId());
-        // dto.setChapterIndex(chapter.getChapterIndex());
-        // dto.setTitle(chapter.getTitle());
-        // dto.setContent(chapter.getContent());
-        // return dto;
     }
 
     // 阅读进度相关方法

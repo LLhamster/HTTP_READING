@@ -4,6 +4,123 @@
   <meta charset="UTF-8" />
   <title>在线阅读器 · HTTP Reading</title>
   <style>
+    /* 阅读模式整体黑底、去掉顶部左右留白 */
+    body.reading-mode {
+      background: #424242;       /* 全屏暗色背景 */
+    }
+
+    /* 阅读模式下，让 main 占满宽度，中间阅读区域更集中 */
+    body.reading-mode main {
+      grid-template-columns: 1fr;  /* 不再分左侧栏，只有中间一列 */
+      padding: 0;                  /* 去掉左右 padding */
+    }
+
+    /* 阅读模式：section 全屏居中显示正文 */
+    body.reading-mode section {
+      max-width: 900px;           /* 中间一条阅读栏，你可以调大小 */
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    /* 阅读模式：正文深灰背景 + 亮色文字 */
+    body.reading-mode .chapter-content {
+      background: #272727;        /* 和 VS Code 类似的深色 */
+      color: #e6e6e6;             /* 你已经设置的浅绿色文字 */
+      box-shadow: none;           /* 可以去掉阴影，更纯净 */
+      border-radius: 0;
+    }
+
+    /* 阅读模式：导航按钮风格稍微提亮一点 */
+    body.reading-mode .chapter-nav button {
+      background: #333333;
+      color: #f5f5f5;
+      border: 1px solid #555555;
+    }
+
+    @font-face {
+      font-family: '霞奥';      /* 你自定义的字体名称 */
+      src: url('/fonts/LXGWWenKai-Light.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    /* 悬浮设置按钮（右下角小圆圈） */
+    .fab-settings {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(15,23,42,0.3);
+      cursor: pointer;
+      z-index: 1000;
+      font-size: 22px;
+    }
+
+    /* 悬浮设置面板遮罩 */
+    .settings-panel-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.35);
+      display: none;           /* 默认隐藏 */
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    /* 悬浮设置面板主体 */
+    .settings-panel {
+      background: #ffffff;
+      border-radius: 8px;
+      width: 360px;
+      max-width: 90vw;
+      padding: 12px 14px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.4);
+      font-size: 13px;
+    }
+
+    .settings-panel h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .settings-row label {
+      min-width: 48px;
+      color: #4b5563;
+    }
+
+    .settings-row select,
+    .settings-row button,
+    .settings-row span {
+      font-size: 13px;
+    }
+
+    .settings-panel textarea {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 13px;
+      padding: 6px 8px;
+      resize: vertical;
+    }
+
+    .settings-panel .ai-answer {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #111827;
+      white-space: pre-wrap;
+    }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f7; }
     header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #1f2933; color: #fff; }
@@ -13,10 +130,30 @@
     header button.primary { background: #3b82f6; color: #fff; }
     header button.secondary { background: #4b5563; color: #fff; }
 
-    main { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 48px); }
+    main {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);   /* 左 280px 侧栏，右边自适应 */
+      gap: 16px;
+      padding: 0 16px 16px;
+    }
 
-    aside { border-right: 1px solid #e5e7eb; background: #ffffff; padding: 10px; overflow: auto; }
-    section { padding: 12px 16px; overflow: auto; }
+    /* 左侧：搜索 + 书架 */
+    aside {
+      border-radius: 4px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      padding: 10px;
+      overflow: auto;
+    }
+
+    /* 右侧：整块阅读区 */
+    section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;          /* 让内部内容在这一列里居中 */
+      padding: 12px 0;
+      overflow: auto;
+    }
 
     h2 { margin: 8px 0; font-size: 16px; }
     .search-box { display: flex; gap: 6px; margin-top: 4px; }
@@ -39,7 +176,33 @@
     .chapter-nav select { padding: 4px 6px; }
     .chapter-nav button { padding: 4px 10px; }
 
-    .chapter-content { background: #ffffff; border-radius: 4px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.1); height: calc(100% - 80px); overflow: auto; white-space: pre-wrap; line-height: 1.6; }
+    .chapter-content {
+      background: #464646;
+      border-radius: 4px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 3px rgba(102, 62, 62, 0.1);
+      color: #e4f1e4; /* 可以自己加一行文字颜色 */
+      white-space: pre-wrap;
+      line-height: 1.8;
+      font-size: 18px;
+      /* 正文字体优先使用宋体，找不到时用系统中文字体 */
+      font-family: "宋体", SimSun, "Noto Serif SC", "PingFang SC",
+                  "Microsoft YaHei", system-ui, -apple-system,
+                  BlinkMacSystemFont, sans-serif;
+      max-width: 1200px;   /* 正文区最大宽度，可以根据喜好调 640/800 等 */
+      margin: 0 auto;     /* 在右侧这列里面水平居中 */
+    }
+    
+    /* 单栏模式（默认）：什么都不用改，只保持原样 */
+    .chapter-content.single-column {
+      column-count: 1;
+    }
+
+    /* 双栏模式：暂时先不分页，两列感觉别扭就等以后做真分页 */
+    .chapter-content.two-column {
+      column-count: 1;  /* 先和单栏一样 */
+    }
+
 
     .login-panel { position: fixed; inset: 0; background: rgba(15,23,42,0.35); display: none; align-items: center; justify-content: center; }
     .login-card { background: #ffffff; padding: 16px 18px; border-radius: 6px; width: 320px; box-shadow: 0 10px 25px rgba(15,23,42,0.45); }
@@ -96,21 +259,72 @@
       <span>章节：</span>
       <select id="chapterSelect" onchange="jumpChapter()"></select>
       <button onclick="addCurrentBookToShelf()">加入书架</button>
+      <!-- 新增：阅读模式开关 -->
+      <button onclick="toggleReadingMode()">阅读模式</button>
     </div>
 
-    <div class="chapter-content" id="chapterContent">
+    
+
+    <div class="chapter-content single-column" id="chapterContent">
       在左侧搜索图书并选择一本，或从书架中点选一本图书开始阅读。
     </div>
 
-    <!-- AI 助手区域 -->
-    <div style="margin-top: 12px; background:#fff; border-radius:4px; padding:8px 10px; box-shadow:0 1px 3px rgba(15,23,42,0.06);">
-      <div style="font-size:13px; font-weight:600; margin-bottom:4px;">AI 阅读助手</div>
-      <textarea id="aiQuestion" rows="3" style="width:100%; box-sizing:border-box; font-size:13px; padding:6px 8px; resize:vertical;" placeholder="针对当前章节提问，例如：请帮我总结这一节在讲什么？"></textarea>
-      <button style="margin-top:6px; padding:4px 10px; font-size:13px;" onclick="askAi()">询问 AI</button>
-      <div id="aiAnswer" style="margin-top:6px; font-size:13px; color:#111827; white-space:pre-wrap;"></div>
-    </div>
   </section>
 </main>
+
+<!-- 悬浮设置按钮 -->
+<div class="fab-settings" onclick="toggleSettingsPanel()" title="阅读设置 / AI">
+  ⚙
+</div>
+
+<!-- 悬浮设置面板 -->
+<div class="settings-panel-mask" id="settingsMask" onclick="onSettingsMaskClick(event)">
+  <div class="settings-panel">
+    <h3>阅读设置 & AI</h3>
+
+    <div class="settings-row">
+      <label>字体</label>
+      <select id="fontSelect" onchange="changeFontFamily()">
+        <option value="default">默认</option>
+        <option value="song">宋体</option>
+        <option value="hei">黑体</option>
+        <option value="myfont">霞奥</option>
+      </select>
+    </div>
+
+    <div class="settings-row">
+      <label>字号</label>
+      <button onclick="changeFontSize(-2)">A-</button>
+      <button onclick="changeFontSize(2)">A+</button>
+      <span id="fontSizeDisplay">18px</span>
+    </div>
+
+    <div class="settings-row">
+      <label>排版</label>
+      <select id="layoutSelect" onchange="changeLayoutMode()">
+        <option value="single">单栏</option>
+        <option value="two">双栏</option>
+      </select>
+    </div>
+
+    <hr style="margin:8px 0; border:none; border-top:1px solid #e5e7eb;" />
+
+    <div>
+      <div style="font-size:13px; font-weight:600; margin-bottom:4px;">AI 阅读助手</div>
+      <textarea id="aiQuestion" rows="3"
+                placeholder="针对当前章节提问，例如：请帮我总结这一节在讲什么？"></textarea>
+      <button style="margin-top:6px; padding:4px 10px; font-size:13px;"
+              onclick="askAi()">询问 AI</button>
+      <div id="aiAnswer" class="ai-answer"></div>
+    </div>
+
+    <div style="text-align:right; margin-top:8px;">
+      <button style="padding:4px 10px; font-size:13px;"
+              onclick="toggleSettingsPanel()">关闭</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- 登录弹窗 -->
 <div class="login-panel" id="loginPanel">
@@ -132,6 +346,106 @@
   let currentBookId = null;    // 当前阅读的书 id
   let currentChapterIndex = 1; // 当前章节序号
   let chaptersCache = [];      // 当前书的章节列表
+
+  let currentFontSize = 18; // 与 .chapter-content 里的初始字号保持一致
+
+  let settingsVisible = false;
+
+  function toggleSettingsPanel() {
+    const mask = document.getElementById('settingsMask');
+    if (!mask) return;
+    settingsVisible = !settingsVisible;
+    mask.style.display = settingsVisible ? 'flex' : 'none';
+  }
+
+  function onSettingsMaskClick(event) {
+    // 点击遮罩区域（灰色背景）才关闭，点击面板本身不关闭
+    if (event.target.id === 'settingsMask') {
+      toggleSettingsPanel();
+    }
+  }
+
+  function applyFontSize() {
+    const contentEl = document.getElementById('chapterContent');
+    if (!contentEl) return;
+    contentEl.style.fontSize = currentFontSize + 'px';
+    const displayEl = document.getElementById('fontSizeDisplay');
+    if (displayEl) displayEl.textContent = currentFontSize + 'px';
+  }
+
+  function changeFontSize(delta) {
+    currentFontSize += delta;
+    // 限制区间，防止太小或太大
+    if (currentFontSize < 12) currentFontSize = 12;
+    if (currentFontSize > 32) currentFontSize = 32;
+    applyFontSize();
+  }
+
+  function changeFontFamily() {
+    const sel = document.getElementById('fontSelect');
+    const val = sel.value;
+    const contentEl = document.getElementById('chapterContent');
+    if (!contentEl) return;
+
+    if (val === 'song') {
+      contentEl.style.fontFamily = '"宋体", SimSun, "Noto Serif SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    } else if (val === 'hei') {
+      contentEl.style.fontFamily = '"黑体", "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    } else if (val === 'myfont') {
+      // 使用你本地的 ttf 字体（通过 @font-face 注册的名字）
+      contentEl.style.fontFamily = "'霞奥', '宋体', SimSun, 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    } else {
+      // 恢复默认（使用 .chapter-content 里的 font-family）
+      contentEl.style.fontFamily = '';
+    }
+  }
+
+  function changeLayoutMode() {
+    const sel = document.getElementById('layoutSelect');
+    const val = sel.value;
+    const contentEl = document.getElementById('chapterContent');
+    if (!contentEl) return;
+
+    // 先清掉两种模式
+    contentEl.classList.remove('single-column', 'two-column');
+
+    if (val === 'two') {
+      contentEl.classList.add('two-column');
+    } else {
+      contentEl.classList.add('single-column');
+    }
+  }
+
+  let readingMode = false;   // 是否在阅读模式中
+
+  function toggleReadingMode() {
+    readingMode = !readingMode;
+
+    const body = document.body;
+    const header = document.querySelector('header');
+    const aside = document.querySelector('aside');
+    const fab = document.querySelector('.fab-settings'); // 右下角⚙按钮
+
+    // 切换一个 body 的类，用来控制全局样式
+    if (readingMode) {
+      body.classList.add('reading-mode');
+    } else {
+      body.classList.remove('reading-mode');
+    }
+
+    // 显示/隐藏头部、左侧栏、设置按钮
+    if (header) header.style.display = readingMode ? 'none' : 'flex';
+    if (aside) aside.style.display = readingMode ? 'none' : 'block';
+    if (fab) fab.style.display = readingMode ? 'none' : 'flex';
+
+    // 章节下拉 + 加入书架在阅读模式中隐藏
+    if (chapterSelect) chapterSelect.style.display = readingMode ? 'none' : 'inline-block';
+    if (addBtn) addBtn.style.display = readingMode ? 'none' : 'inline-block';
+
+    // 页面滚动到最上方，方便开始读
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
 
   function logError(msg) {
     console.error(msg);
@@ -193,7 +507,10 @@
     try {
       await api('POST', '/api/auth/login', { username, password });
       currentUser = { username };
+      // 初始化
       updateUserStatus();
+      applyFontSize();       // 你已经有的
+      changeLayoutMode();    // 根据默认 select 值设置一次
       msgEl.textContent = '登录成功';
       setTimeout(closeLogin, 500);
     } catch (e) {
@@ -412,6 +729,8 @@
 
   // 初始化
   updateUserStatus();
+  applyFontSize();
+  changeLayoutMode();
 </script>
 </body>
 </html>
